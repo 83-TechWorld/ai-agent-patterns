@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Agent Design Patterns</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: #f4f3ef;
+    color: #2C2C2A;
+    padding: 2rem 1rem;
+    min-height: 100vh;
+  }
+  .page { max-width: 680px; margin: 0 auto; }
+  h1 { font-size: 22px; font-weight: 600; margin-bottom: 0.25rem; color: #2C2C2A; }
+  .subtitle { font-size: 14px; color: #5F5E5A; margin-bottom: 2rem; }
+  .section { background: #ffffff; border: 0.5px solid rgba(0,0,0,0.1); border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem; }
+  .badge { display: inline-block; font-size: 11px; font-weight: 600; padding: 3px 12px; border-radius: 20px; margin-bottom: 0.6rem; letter-spacing: 0.02em; }
+  .badge-blue  { background: #E6F1FB; color: #0C447C; }
+  .badge-teal  { background: #E1F5EE; color: #085041; }
+  .badge-amber { background: #FAEEDA; color: #633806; }
+  h2 { font-size: 16px; font-weight: 600; color: #2C2C2A; margin-bottom: 0.35rem; }
+  .desc { font-size: 13px; color: #5F5E5A; line-height: 1.7; margin-bottom: 0.75rem; }
+  .example-strip { border-left: 3px solid; border-radius: 0 8px 8px 0; background: #f4f3ef; padding: 10px 14px; font-size: 13px; color: #5F5E5A; line-height: 1.65; margin-bottom: 1rem; }
+  .example-strip.blue  { border-color: #378ADD; }
+  .example-strip.teal  { border-color: #1D9E75; }
+  .example-strip.amber { border-color: #BA7517; }
+  .example-strip strong { color: #2C2C2A; font-weight: 600; }
+  .example-strip code { background: rgba(0,0,0,0.06); padding: 1px 5px; border-radius: 4px; font-size: 12px; }
+  .gif-box { background: #f4f3ef; border: 0.5px solid rgba(0,0,0,0.08); border-radius: 10px; overflow: hidden; }
+  canvas { display: block; width: 100%; }
+  .post-section { background: #ffffff; border: 0.5px solid rgba(0,0,0,0.1); border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem; }
+  .post-section h2 { margin-bottom: 1rem; }
+  .post-text { font-size: 13px; color: #2C2C2A; line-height: 1.8; white-space: pre-wrap; background: #f4f3ef; border-radius: 8px; padding: 1rem; margin-bottom: 1rem; }
+  button { font-family: inherit; font-size: 13px; font-weight: 500; padding: 8px 18px; border: 0.5px solid rgba(0,0,0,0.2); border-radius: 8px; background: transparent; color: #2C2C2A; cursor: pointer; transition: background 0.15s; }
+  button:hover { background: #f4f3ef; }
+  .copy-hint { font-size: 12px; color: #1D9E75; margin-top: 6px; display: none; }
+  .steps h2 { font-size: 15px; margin-bottom: 1rem; }
+  .step { display: flex; gap: 14px; margin-bottom: 1rem; align-items: flex-start; }
+  .step-num { width: 28px; height: 28px; border-radius: 50%; background: #E6F1FB; color: #0C447C; font-size: 13px; font-weight: 600; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 1px; }
+  .step-body { font-size: 13px; color: #5F5E5A; line-height: 1.6; }
+  .step-body strong { color: #2C2C2A; font-weight: 600; }
+  .step-body a { color: #378ADD; }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <h1>AI Agent Design Patterns</h1>
+  <p class="subtitle">3 foundational architectures — with animated diagrams and a ready LinkedIn post</p>
+
+  <div class="section">
+    <span class="badge badge-blue">Pattern 1 — Single agent</span>
+    <h2>One brain, many tools</h2>
+    <p class="desc">A single LLM receives the user's request, decides which tools to call, executes them sequentially, and returns the answer. Simple to build — but context fills up fast on complex multi-step tasks. Perfect for anything that fits in one conversation turn.</p>
+    <div class="example-strip blue">
+      <strong>Real-world example — customer support bot.</strong><br>
+      User asks: "Where's order #4821 and can I change the address?"<br>
+      Agent calls <code>order_lookup(4821)</code> → then <code>address_update()</code> → replies with confirmation.<br>
+      One agent. Two tools. Done in a single pass.
+    </div>
+    <div class="gif-box"><canvas id="c1" height="160"></canvas></div>
+  </div>
+
+  <div class="section">
+    <span class="badge badge-teal">Pattern 2 — Sequential agent</span>
+    <h2>Assembly line — each agent owns one step</h2>
+    <p class="desc">Agents are chained in strict order. The output of Agent A feeds directly into Agent B. Highly predictable, easy to audit, and easy to retry a single broken step — ideal for compliance-heavy or regulated workflows.</p>
+    <div class="example-strip teal">
+      <strong>Real-world example — financial report pipeline.</strong><br>
+      Agent 1 extracts raw numbers from a PDF<br>
+      → Agent 2 calculates YoY growth and flags anomalies<br>
+      → Agent 3 writes the executive summary<br>
+      → Agent 4 runs a compliance check before publishing<br>
+      Each step is logged and independently re-runnable.
+    </div>
+    <div class="gif-box"><canvas id="c2" height="160"></canvas></div>
+  </div>
+
+  <div class="section">
+    <span class="badge badge-amber">Pattern 3 — Parallel agent</span>
+    <h2>Multiple specialists running at the same time</h2>
+    <p class="desc">An orchestrator splits the task into independent sub-problems and fires specialist agents concurrently. Results are merged when all agents finish. 4 agents × 3 s each = finishes in ~3 s, not 12 s.</p>
+    <div class="example-strip amber">
+      <strong>Real-world example — e-commerce checkout.</strong><br>
+      The moment you click "Place Order", four agents fire simultaneously:<br>
+      → Inventory check &nbsp;&nbsp;→ Payment processing<br>
+      → Fraud detection &nbsp;&nbsp;→ Shipping ETA<br>
+      All four results merge into a single confirm-or-reject in one third of the serial time.
+    </div>
+    <div class="gif-box"><canvas id="c3" height="210"></canvas></div>
+  </div>
+
+  <div class="post-section">
+    <h2>LinkedIn post — copy &amp; paste</h2>
+    <div class="post-text" id="post-text">🤖 3 AI Agent Design Patterns every engineer should know
+
+I just watched an excellent Google Cloud Tech breakdown and wanted to share the key mental models — with better real-world examples.
+
+─────────────────────────────
+
+🔵 Pattern 1: Single Agent
+
+One LLM. Many tools. The agent decides which ones to call.
+
+Real example: A customer support bot that looks up an order, checks inventory, and sends a confirmation — all in one conversation turn.
+
+✅ Best for: simple tasks, under ~5 tool calls
+⚠️ Watch out: context window fills fast on complex chains
+
+─────────────────────────────
+
+🟢 Pattern 2: Sequential Agent
+
+An assembly line. Each specialist agent does one focused job and passes output to the next.
+
+Real example: A financial report pipeline —
+• Agent 1 extracts raw numbers from a PDF
+• Agent 2 calculates YoY growth and flags anomalies
+• Agent 3 writes the executive summary
+• Agent 4 runs a compliance check
+
+If one step fails, you retry just that step. Fully auditable. Perfect for regulated industries.
+
+✅ Best for: compliance workflows, ETL, code review pipelines
+⚠️ Watch out: serial execution = slower
+
+─────────────────────────────
+
+🟡 Pattern 3: Parallel Agent
+
+Split the task. Fire independent specialists concurrently. Merge results.
+
+Real example: E-commerce checkout — when you click "Place Order":
+→ Inventory check
+→ Payment processing
+→ Fraud detection
+→ Shipping ETA calculation
+
+All 4 run simultaneously. Result: 3× faster than serial execution.
+
+✅ Best for: latency-sensitive systems, multi-aspect scoring
+⚠️ Watch out: more LLM cost, need merge logic
+
+─────────────────────────────
+
+Quick decision rule:
+
+Task is simple? → Single Agent
+Steps depend on each other? → Sequential
+Tasks are independent? → Parallel
+
+The real power comes from combining all three in a multi-agent system.
+
+What pattern are you using in production? 👇
+
+#AIAgents #AgenticAI #LLM #GoogleCloud #SoftwareEngineering</div>
+    <button onclick="copyPost()">Copy post text</button>
+    <div class="copy-hint" id="copy-hint">Copied! Paste into LinkedIn.</div>
+  </div>
+
+  <div class="post-section steps">
+    <h2>How to post on LinkedIn with the GIFs</h2>
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-body"><strong>Record each animation as a GIF/MP4.</strong> Open this file in Chrome. Use <a href="https://www.screentogif.com" target="_blank">ScreenToGif</a> (Windows) or <a href="https://getkap.co" target="_blank">Kap</a> (Mac) to screen-record each animated box for ~4 seconds. Save as GIF or MP4.</div>
+    </div>
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-body"><strong>Open LinkedIn → Start a post.</strong> Click the image/video icon and upload all 3 GIF or MP4 files. LinkedIn supports up to 9 media items per post.</div>
+    </div>
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-body"><strong>Paste the post text.</strong> Click "Copy post text" above, then paste into the LinkedIn text area. The animations appear as attachments alongside your text.</div>
+    </div>
+    <div class="step">
+      <div class="step-num">4</div>
+      <div class="step-body"><strong>Add alt text to each GIF</strong> (optional but recommended). Click the pencil icon on each image and add a one-line description — good for accessibility and the LinkedIn algorithm.</div>
+    </div>
+    <div class="step">
+      <div class="step-num">5</div>
+      <div class="step-body"><strong>Post!</strong> Hit publish and optionally add the YouTube video link in the first comment to drive traffic to the original source.</div>
+    </div>
+  </div>
+
+</div>
+<script>
+function copyPost(){
+  const text=document.getElementById('post-text').innerText;
+  navigator.clipboard.writeText(text).then(()=>{
+    const h=document.getElementById('copy-hint');
+    h.style.display='block';
+    setTimeout(()=>h.style.display='none',3000);
+  });
+}
+
+const dark=window.matchMedia('(prefers-color-scheme:dark)').matches;
+const C={
+  text:    dark?'#c2c0b6':'#2C2C2A',
+  textMid: dark?'#888780':'#5F5E5A',
+  border:  dark?'rgba(255,255,255,0.15)':'rgba(0,0,0,0.12)',
+  bg2:     dark?'#1a1a18':'#f4f3ef',
+  blue50:  dark?'#0C447C':'#E6F1FB',
+  blue400:'#378ADD',
+  blue800: dark?'#B5D4F4':'#0C447C',
+  teal50:  dark?'#085041':'#E1F5EE',
+  teal400:'#1D9E75',
+  teal800: dark?'#9FE1CB':'#085041',
+  amber50: dark?'#633806':'#FAEEDA',
+  amber400:'#BA7517',
+  amber800:dark?'#FAC775':'#633806',
+  gray50:  dark?'#2C2C2A':'#F1EFE8',
+  gray400:'#888780',
+  gray800: dark?'#D3D1C7':'#444441',
+};
+
+function setup(cv){
+  const r=window.devicePixelRatio||1;
+  const w=cv.clientWidth||640, h=cv.clientHeight||160;
+  cv.width=w*r; cv.height=h*r;
+  const ctx=cv.getContext('2d'); ctx.scale(r,r);
+  return{ctx,w,h};
+}
+function pill(ctx,x,y,w,h,fill,stroke,title,tc,sub,sc){
+  ctx.save();
+  ctx.beginPath(); ctx.roundRect(x,y,w,h,8);
+  ctx.fillStyle=fill; ctx.fill();
+  ctx.strokeStyle=stroke; ctx.lineWidth=0.5; ctx.stroke();
+  ctx.fillStyle=tc;
+  ctx.font='600 13px -apple-system,BlinkMacSystemFont,sans-serif';
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillText(title,x+w/2,sub?y+h/2-7:y+h/2);
+  if(sub){
+    ctx.fillStyle=sc||tc;
+    ctx.font='400 11px -apple-system,BlinkMacSystemFont,sans-serif';
+    ctx.fillText(sub,x+w/2,y+h/2+8);
+  }
+  ctx.restore();
+}
+function arrow(ctx,x1,y1,x2,y2,color){
+  ctx.save();
+  ctx.strokeStyle=color; ctx.lineWidth=1.5;
+  ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
+  const a=Math.atan2(y2-y1,x2-x1);
+  ctx.beginPath();
+  ctx.moveTo(x2,y2);
+  ctx.lineTo(x2-9*Math.cos(a-0.4),y2-9*Math.sin(a-0.4));
+  ctx.lineTo(x2-9*Math.cos(a+0.4),y2-9*Math.sin(a+0.4));
+  ctx.closePath(); ctx.fillStyle=color; ctx.fill();
+  ctx.restore();
+}
+function dot(ctx,x,y,r,color,alpha){
+  ctx.save(); ctx.globalAlpha=alpha;
+  ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2);
+  ctx.fillStyle=color; ctx.fill(); ctx.restore();
+}
+function bg(ctx,w,h){
+  ctx.clearRect(0,0,w,h);
+  ctx.fillStyle=C.bg2;
+  ctx.beginPath(); ctx.roundRect(0,0,w,h,10); ctx.fill();
+}
+
+function loop(fn){
+  let last=0,t=0;
+  function tick(now){
+    const dt=Math.min((now-last)/1000,0.05); last=now; t+=dt; fn(t);
+    requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(n=>{last=n;tick(n)});
+}
+
+const P=3.2;
+loop(t=>{
+  const cv=document.getElementById('c1');
+  const{ctx,w,h}=setup(cv); bg(ctx,w,h);
+  const phase=(t%P)/P;
+  const boxes=[{l:'User query',c:'gray'},{l:'Agent',s:'picks tools',c:'blue'},{l:'Search',s:'tool',c:'blue'},{l:'DB query',s:'tool',c:'blue'},{l:'Answer',c:'gray'}];
+  const bw=104,bh=46,gap=14,total=boxes.length*bw+(boxes.length-1)*gap,sx=(w-total)/2,by=(h-bh)/2;
+  boxes.forEach((b,i)=>{
+    const x=sx+i*(bw+gap);
+    pill(ctx,x,by,bw,bh,b.c==='blue'?C.blue50:C.gray50,b.c==='blue'?C.blue400:C.gray400,b.l,b.c==='blue'?C.blue800:C.gray800,b.s||null,C.textMid);
+    if(i<boxes.length-1) arrow(ctx,x+bw+2,by+bh/2,x+bw+gap-2,by+bh/2,C.border);
+  });
+  [0,0.28,0.5,0.72].forEach(dp=>{
+    const prog=((phase-dp+1)%1); if(prog>0.6)return;
+    const n=prog/0.6,rx=sx+n*(boxes.length-1)*(bw+gap)+bw/2;
+    const alpha=n<0.1?n/0.1:n>0.9?(1-n)/0.1:1;
+    dot(ctx,rx,by+bh/2+22,5,C.blue400,alpha*0.85);
+  });
+});
+
+loop(t=>{
+  const cv=document.getElementById('c2');
+  const{ctx,w,h}=setup(cv); bg(ctx,w,h);
+  const phase=(t%P)/P;
+  const steps=[{l:'Extract',s:'PDF data'},{l:'Analyse',s:'YoY growth'},{l:'Summarise',s:'exec brief'},{l:'Compliance',s:'check'}];
+  const bw=122,bh=48,gap=18,total=steps.length*bw+(steps.length-1)*gap,sx=(w-total)/2,by=(h-bh)/2;
+  steps.forEach((s,i)=>{
+    const segP=Math.max(0,Math.min(1,(phase*steps.length)-i)),lit=segP>0.05;
+    pill(ctx,sx+i*(bw+gap),by,bw,bh,lit?C.teal50:C.gray50,lit?C.teal400:C.border,s.l,lit?C.teal800:C.gray400,s.s,lit?C.teal400:C.gray400);
+    if(i<steps.length-1) arrow(ctx,sx+i*(bw+gap)+bw+2,by+bh/2,sx+(i+1)*(bw+gap)-2,by+bh/2,(phase*steps.length)>i+0.9?C.teal400:C.border);
+  });
+  if(phase<0.95){
+    const dx=sx+(phase*(steps.length-1))*(bw+gap)+bw/2;
+    dot(ctx,dx,by+bh/2,6,C.teal400,0.9); dot(ctx,dx,by+bh/2,11,C.teal400,0.2);
+  }
+});
+
+const FULL=4.2;
+loop(t=>{
+  const cv=document.getElementById('c3');
+  const{ctx,w,h}=setup(cv); bg(ctx,w,h);
+  const phase=(t%FULL)/FULL;
+  const fD=phase>0.2,aD=phase>0.6,mD=phase>0.8;
+  const orchW=130,orchH=38,ox=(w-130)/2,oy=16;
+  pill(ctx,ox,oy,orchW,orchH,C.gray50,C.gray400,'Orchestrator',C.gray800,null,null);
+  const agents=[{l:'Inventory',s:'check'},{l:'Payment',s:'process'},{l:'Fraud',s:'detect'},{l:'Shipping',s:'ETA'}];
+  const aw=114,ah=46,ag=12,totalA=agents.length*aw+(agents.length-1)*ag,ax=(w-totalA)/2,ay=h-ah-14;
+  const mW=130,mH=38,mx=(w-130)/2,my=h/2+12;
+  agents.forEach((a,i)=>{
+    const cx=ax+i*(aw+ag)+aw/2,lit=aD||(fD&&phase<0.6);
+    pill(ctx,ax+i*(aw+ag),ay,aw,ah,lit?C.amber50:C.gray50,lit?C.amber400:C.border,a.l,lit?C.amber800:C.gray400,a.s,lit?C.amber400:C.gray400);
+    if(fD){const al=aD?1:Math.min(1,(phase-0.2)/0.15);ctx.save();ctx.globalAlpha=al;arrow(ctx,ox+orchW/2,oy+orchH,cx,ay,C.amber400);ctx.restore();}
+    if(aD){const al=Math.min(1,(phase-0.6)/0.15);ctx.save();ctx.globalAlpha=al;arrow(ctx,cx,ay,mx+mW/2,my+mH,C.teal400);ctx.restore();}
+  });
+  if(aD){const al=Math.min(1,(phase-0.6)/0.2);ctx.save();ctx.globalAlpha=al;pill(ctx,mx,my,mW,mH,mD?C.teal50:C.gray50,mD?C.teal400:C.border,'Merge + respond',mD?C.teal800:C.gray800,null,null);ctx.restore();}
+  ctx.fillStyle=C.textMid;ctx.font='11px -apple-system,BlinkMacSystemFont,sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.fillText('All 4 agents run simultaneously',w/2,oy+orchH+12+(ay-oy-orchH-28)/2);
+  if(!fD){dot(ctx,ox+orchW/2,oy+orchH+(phase/0.2)*(ay-oy-orchH)*0.5,5,C.amber400,0.85);}
+  if(fD&&!aD){const p=(phase-0.2)/0.4;agents.forEach((a,i)=>{const tcx=ax+i*(aw+ag)+aw/2;dot(ctx,ox+orchW/2+(tcx-ox-orchW/2)*p,oy+orchH+(ay-oy-orchH)*p,5,C.amber400,0.75);});}
+  if(aD&&!mD){const p=(phase-0.6)/0.2;agents.forEach((a,i)=>{const scx=ax+i*(aw+ag)+aw/2;dot(ctx,scx+(mx+mW/2-scx)*p,ay+(my+mH-ay)*p,5,C.teal400,0.8);});}
+});
+</script>
+</body>
+</html>
